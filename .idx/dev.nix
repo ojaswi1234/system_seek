@@ -13,6 +13,8 @@
     pkgs.docker
     pkgs.redis
     pkgs.jenkins
+    pkgs.apt
+    pkgs.sudo
   ];
   # Sets environment variables in the workspace
   env = {};
