@@ -12,15 +12,21 @@ export const authOptions: AuthOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
+      authorization: { 
+      params: { scope: 'read:user user:email repo' } 
+    },
     }),
   ],
   callbacks: {
-    async jwt({ token, profile }: { token: JWT; profile?: Profile }) {
+    async jwt({ token, profile, account }: { token: JWT; account?: any; profile?: Profile }) {
       if (profile) {
         token.username = (profile as any).login;
         token.image = (profile as any).avatar_url;
         token.id = (profile as any).id;
       }
+      if (account) {
+    token.accessToken = account.access_token;
+  }
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
@@ -29,6 +35,7 @@ export const authOptions: AuthOptions = {
         (session.user as any).image = token.image;
         (session.user as any).id = token.id;
       }
+      (session as any).accessToken = token.accessToken;
       return session;
     },
   },

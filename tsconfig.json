@@ -8,8 +8,8 @@
     "noEmit": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "module": "node16",
-    "moduleResolution": "node16",
+    "module": "esnext",              // <-- Change this from "commonjs"
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
