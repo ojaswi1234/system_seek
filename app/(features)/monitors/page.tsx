@@ -1,0 +1,87 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import MonitorCard from "@/components/monitorCard";
+import React, { useState } from "react";
+
+function Page() {
+  const [website, setWebsite] = useState([] as any[]);
+  const [container, setContainer] = useState([] as any[]);
+
+  return (
+    <div className="flex flex-col min-h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black">
+      {/* Header Section */}
+      <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-wide">
+        <span className="font-sans text-transparent bg-clip-text outlined-text ">
+          24/7
+        </span>{" "}
+        Web server Monitoring
+      </h1>
+      <hr className="border-gray-200" />
+
+      <p className="text-md text-gray-600 mt-4 mb-10">
+        Monitor the uptime and performance of your web servers & containers with
+        real-time metrics and alerts.
+      </p>
+
+      {/* Main Content Area - Stacks on mobile, side-by-side on large screens */}
+      <div className="flex flex-col lg:flex-row w-full flex-1 gap-10 lg:gap-16 h-full">
+        
+        {/* Left Column: Input & Monitors */}
+        <aside className="w-full lg:w-1/2 flex flex-col h-full">
+          <button className="self-end mb-6 px-6 py-3 bg-black text-white uppercase text-sm tracking-widest hover:bg-zinc-800 transition-all">
+            + Add Monitor
+          </button>
+
+          {website.length === 0 ? (
+            /* FIXED: Wrapper div to take remaining space and center content perfectly */
+            <div className="flex-1 flex flex-col items-center justify-center min-h-62.5 border-2 border-dashed border-gray-200 rounded-lg p-6">
+              <p className="text-gray-400 text-center">
+                Add your website to monitor
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {website.map((item, index) => (
+                <div key={index}>
+                  {/* Render your website item details here */}
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        {/* Desktop Vertical Divider (Hidden on mobile) */}
+        <div className="hidden lg:block w-0.5 bg-gray-300 self-stretch rounded-full"></div>
+
+        {/* Mobile Horizontal Divider (Hidden on desktop) */}
+        <hr className="block lg:hidden border-gray-100 w-full" />
+
+        {/* Right Column: Containers */}
+        <aside className="w-full lg:w-1/2 flex flex-col h-full">
+          <button className="self-end mb-6 px-6 py-3 bg-black text-white uppercase text-sm tracking-widest hover:bg-zinc-800 transition-all">
+            + Add Container
+          </button>
+          
+          {container.length === 0 ? (
+            /* FIXED: Wrapper div to take remaining space and center content perfectly */
+            <div className="flex-1 flex flex-col items-center justify-center min-h-62.5 border-2 border-dashed border-gray-200 rounded-lg p-6">
+              <p className="text-gray-400 text-center">
+                Monitor Containers in an isolated environment
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {container.map((item, index) => (
+                <div key={index}>
+                  {/* Render your container item details here */}
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+export default Page;

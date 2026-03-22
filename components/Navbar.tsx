@@ -12,8 +12,8 @@ const Navbar = () => {
   // 2. STRIP THE (features) FOLDER FROM THE URLS
   const navItems = [
     { id: 'dashboard', icon: <LayoutDashboard size={24} strokeWidth={1.5} />, label: 'DASHBOARD', url: "/dashboard"},
-    { id: 'monitor', icon: <Activity size={24} strokeWidth={1.5} />, label: 'UPTIME_MONITOR', url: "/container"},
-    { id: 'drift', icon: <Search size={24} strokeWidth={1.5} />, label: 'DRIFT_ENGINE', url: "/gitRepo"},
+    { id: 'monitor', icon: <Activity size={24} strokeWidth={1.5} />, label: 'UPTIME_MONITOR', url: "/monitors"},
+    { id: 'drift', icon: <Search size={24} strokeWidth={1.5} />, label: 'DRIFT_ENGINE', url: "#"},
     { id: 'console', icon: <Terminal size={24} strokeWidth={1.5} />, label: 'WEB_SHELL', url: "/console" },
     { id: 'jenkins', icon: <Bot size={24} strokeWidth={1.5} />, label: 'AUTO_FIXES', url: "/pipelines" },
     { id: 'security', icon: <ShieldAlert size={24} strokeWidth={1.5} />, label: 'SECURITY', url: "#" }, 

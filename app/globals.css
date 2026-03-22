@@ -33,3 +33,8 @@ body {
 .scrollbtn::-webkit-scrollbar {
   scrollbar-width: none;
 }
+
+.outlined-text {
+  -webkit-text-stroke: 2px black; /* outline thickness + color */
+  color: transparent;             /* remove fill */
+}
