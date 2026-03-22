@@ -2,11 +2,12 @@
 "use client";
 import MonitorCard from "@/components/monitorCard";
 import React, { useState } from "react";
+import WebserverMonitorModal from "@/components/modals/webserver/webserverMonitorModal";
 
 function Page() {
   const [website, setWebsite] = useState([] as any[]);
   const [container, setContainer] = useState([] as any[]);
-
+const [isModalOpen, setIsModalOpen] = useState(false);
   return (
     <div className="flex flex-col min-h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black">
       {/* Header Section */}
@@ -28,7 +29,8 @@ function Page() {
         
         {/* Left Column: Input & Monitors */}
         <aside className="w-full lg:w-1/2 flex flex-col h-full">
-          <button className="self-end mb-6 px-6 py-3 bg-black text-white uppercase text-sm tracking-widest hover:bg-zinc-800 transition-all">
+          <button className="self-end mb-6 px-6 py-3 bg-black text-white uppercase text-sm tracking-widest hover:bg-zinc-800 transition-all cursor-pointer"
+          onClick={() => setIsModalOpen(true)}>
             + Add Monitor
           </button>
 
@@ -80,6 +82,10 @@ function Page() {
           )}
         </aside>
       </div>
+      <WebserverMonitorModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }
