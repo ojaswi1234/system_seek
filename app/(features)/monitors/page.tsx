@@ -1,13 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import MonitorCard from "@/components/monitorCard";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import WebserverMonitorModal from "@/components/modals/webserver/webserverMonitorModal";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 function Page() {
   const [website, setWebsite] = useState([] as any[]);
   const [container, setContainer] = useState([] as any[]);
 const [isModalOpen, setIsModalOpen] = useState(false);
+
+const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      redirect("/");
+    },
+  });
+
+React.useEffect(()=>{
+  if(status === "authenticated"){
+
+    fetch("/api/database")
+    .then(res => res.json())
+    .then(data => setWebsite(data.webservers || []))
+  }
+}, [status]);
   return (
     <div className="flex flex-col min-h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black">
       {/* Header Section */}
@@ -44,9 +62,15 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           ) : (
             <div className="flex flex-col gap-6">
               {website.map((item, index) => (
-                <div key={index}>
-                  {/* Render your website item details here */}
-                </div>
+                <MonitorCard 
+                  key={index}
+                  id={item.id}
+                  name={item.name}
+                  url={item.url}
+                  status={item.status}
+                  latency={item.latency}
+                  lastChecked={item.lastChecked}
+                />
               ))}
             </div>
           )}
