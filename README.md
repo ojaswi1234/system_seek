@@ -54,10 +54,10 @@ Create a .env.local file with:
 GITHUB_ID=your_github_oauth_app_client_id
 GITHUB_SECRET=your_github_oauth_app_client_secret
 NEXTAUTH_SECRET=your_random_nextauth_secret
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=your_local_url
 
-MONGODB_URI=mongodb://127.0.0.1:27017/system_seek
-REDIS_URL=redis://default:password@127.0.0.1:6379
+MONGODB_URI=your_mongodb_connection_connection_string
+REDIS_URL=your_local_redis_server_url
 ```
 
 Notes:
