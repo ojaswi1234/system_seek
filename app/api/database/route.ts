@@ -1,18 +1,26 @@
 import dbConnect from "@/lib/db_connect";
 import WebServer from "@/lib/models/WebServer";
 import { NextRequest, NextResponse } from "next/server";
+import redis from "@/lib/redis";
 
 export async function GET() {
   await dbConnect();
   const servers = await WebServer.find({});
-  // Add static status/reason/latency for now (removed from MongoDB schema)
-  const serversWithStaticData = servers.map((server: any) => ({
-    ...server.toObject(),
-    status: 'up',
-    reason: 'No Data (Redis Pending)', 
-    latency: 0
+  
+  const serversWithData = await Promise.all(servers.map(async (server: any) => {
+    const redisKey = `monitor:stats:${server._id}`;
+    const stats = await redis.hgetall(redisKey);
+    
+    return {
+      ...server.toObject(),
+      status: stats.status || 'pending',
+      reason: stats.reason || 'Redis Pending',
+      latency: stats.latency ? parseInt(stats.latency) : 0,
+      lastChecked: stats.lastChecked || server.updatedAt
+    };
   }));
-  return Response.json(serversWithStaticData);
+
+  return Response.json(serversWithData);
 }
 
 interface WebServerBody {
@@ -32,7 +40,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     const webserver: WebServerDocument = await WebServer.create(body);
 
     // Trigger an initial ping without awaiting so it doesn't block the response
-    fetch(new URL('/api/monitor/ping', req.url).toString(), {
+    // Use http://localhost for internal calls to avoid SSL issues with req.url behind proxies
+    const port = process.env.PORT || 3000;
+    fetch(`http://localhost:${port}/api/monitor/ping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: webserver._id }),
