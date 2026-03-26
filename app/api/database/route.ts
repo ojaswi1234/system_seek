@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import dbConnect from "@/lib/db_connect";
 import WebServer from "@/lib/models/WebServer";
 import { NextRequest, NextResponse } from "next/server";
@@ -31,6 +32,7 @@ interface WebServerDocument extends WebServerBody {
   _id: string;
   createdAt?: Date;
   updatedAt?: Date;
+  toObject(): any;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
