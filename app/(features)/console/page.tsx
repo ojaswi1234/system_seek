@@ -10,25 +10,78 @@ import { io, Socket } from "socket.io-client";
 function Page() {
   const { data: session, status } = useSession({
     required: true,
-    onUnauthenticated() { redirect("/"); },
+    onUnauthenticated() {
+      redirect("/");
+    },
   });
 
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
+  const [isShellConnected, setIsShellConnected] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // 1. Setup WebSocket connection to the Handyman Server 
+  // 1. Setup WebSocket connection to the Handyman Server
   useEffect(() => {
-    // Connect to separate Express server on port 3001
-    socketRef.current = io("https://expert-train-6p67vjvvjrpcr6gw-3001.app.github.dev");
+    try {
+      // Connect directly to the terminal server backend
+
+      const sysName = session?.user?.username
+  ? session.user.username?.toLowerCase().replace(/\s+/g, '_') 
+  : "root_user";
+
+      socketRef.current = io(
+        "https://expert-train-6p67vjvvjrpcr6gw-3001.app.github.dev",
+        {
+          transports: ["polling", "websocket"],
+          auth: { username: sysName },
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 2000,
+        },
+      );
+    } catch (err) {
+      console.error("Failed to initialize socket:", err);
+     setTimeout(() => {
+        setHistory((prev) => [
+          ...prev,
+          "[client] Failed to initialize shell connection.",
+        ]);
+      }, 0);
+      return;
+    }
+
+    socketRef.current.on("connect", () => {
+      setIsShellConnected(true);
+    });
+
+    socketRef.current.on("disconnect", () => {
+      setIsShellConnected(false);
+    });
+
+    socketRef.current.on("connect_error", (err) => {
+      setIsShellConnected(false);
+      console.error("Shell connection error:", err);
+      setHistory((prev) => [
+        ...prev,
+        "[client] Unable to connect to terminal server.",
+      ]);
+    });
 
     socketRef.current.on("output", (data: string) => {
-      // Append raw terminal output to history 
-      setHistory((prev) => [...prev, data]);
+      // Append raw terminal output to history
+      const cleanData = data.replace(
+        /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
+        ''
+      );
+      setHistory((prev) => [...prev, cleanData]);
     });
 
     return () => {
+      socketRef.current?.off("connect");
+      socketRef.current?.off("disconnect");
+      socketRef.current?.off("connect_error");
+      socketRef.current?.off("output");
       socketRef.current?.disconnect();
     };
   }, []);
@@ -42,35 +95,51 @@ function Page() {
 
   if (status === "loading") return <GlobalLoader />;
 
-  const sysName = session?.user?.name 
-    ? session.user.name.toUpperCase().replace(/\s+/g, '_') 
+  const sysName = session?.user?.name
+    ? session.user.name.toUpperCase().replace(/\s+/g, "_")
     : "ROOT_USER";
 
   const handleCommand = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    // Clear local command for 'clear' keyword 
-    if (input === 'clear') {
+    // Clear local command for 'clear' keyword
+    if (input === "clear") {
       setHistory([]);
       setInput("");
       return;
     }
 
+    if (!socketRef.current?.connected) {
+      setHistory((prev) => [
+        ...prev,
+        "[client] Shell is disconnected. Reconnect and try again.",
+      ]);
+      return;
+    }
+
     // Emit the command + Enter key (\r) to the Node-pty backend [cite: 56, 76]
-    socketRef.current?.emit("input", input + "\r");
-    
+    try {
+      socketRef.current.emit("input", input + "\r");
+    } catch (err) {
+      console.error("Failed to send command:", err);
+      setHistory((prev) => [
+        ...prev,
+        "[client] Failed to send command to shell.",
+      ]);
+      return;
+    }
+
     // Add the user command to history for visual feedback
     const prompt = `drift@${sysName.toLowerCase()}:~$ ${input}`;
     setHistory((prev) => [...prev, prompt]);
-    
+
     setInput("");
   };
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-5xl h-[80vh] bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col transition-all">
-        
         {/* Window Header */}
         <div className="flex items-center justify-between bg-zinc-900 border-b border-zinc-800 px-4 py-2">
           <div className="flex items-center gap-2">
@@ -80,13 +149,19 @@ function Page() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[9px] font-mono text-zinc-500 uppercase">SECURE_CONNECT</span>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isShellConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+              }`}
+            />
+            <span className="text-[9px] font-mono text-zinc-500 uppercase">
+              {isShellConnected ? "SHELL_CONNECTED" : "SHELL_DISCONNECTED"}
+            </span>
           </div>
         </div>
 
         {/* Console Body */}
-        <div 
+        <div
           ref={scrollRef}
           className="flex-1 p-6 overflow-y-auto font-mono text-sm scrollbar-hide bg-black/50"
         >
@@ -95,27 +170,43 @@ function Page() {
             <p>DriftSeeker Secure Shell v2.1.0 [Encrypted] </p>
             <p>Target: Standard_Node_Cluster_01</p>
             <p>User: {session?.user?.name || "Admin"}</p>
-            <p className="pt-2">Type &apos;drift scan&apos; to check for configuration anomalies[cite: 22].</p>
-            <p>Type &apos;fix --auto&apos; to trigger remediation via Jenkins[cite: 45].</p>
+            <p className="pt-2">
+              Type &apos;drift scan&apos; to check for configuration
+              anomalies[cite: 22].
+            </p>
+            <p>
+              Type &apos;fix --auto&apos; to trigger remediation via
+              Jenkins[cite: 45].
+            </p>
           </div>
 
           {/* History Output */}
           <div className="space-y-1 mb-4">
             {history.map((line, i) => (
-              <p key={i} className={line.includes('drift@') ? "text-zinc-400" : "text-green-400/90 whitespace-pre-wrap"}>
+              <p
+                key={i}
+                className={
+                  line.includes("drift@")
+                    ? "text-zinc-400"
+                    : "text-green-400/90 whitespace-pre-wrap"
+                }
+              >
                 {line}
               </p>
             ))}
           </div>
-          
+
           {/* Active Input Line */}
-          <form onSubmit={handleCommand} className="flex items-center gap-2 text-zinc-300">
+          <form
+            onSubmit={handleCommand}
+            className="flex items-center gap-2 text-zinc-300"
+          >
             <span className="text-green-500 whitespace-nowrap">
               drift@{sysName.toLowerCase()}
             </span>
             <span className="text-blue-400">~</span>
             <span className="text-zinc-500">$</span>
-            <input 
+            <input
               autoFocus
               className="bg-transparent border-none outline-none flex-1 text-zinc-300 caret-green-500"
               value={input}
