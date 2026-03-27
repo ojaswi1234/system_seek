@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"redis-server --save --appendonly yes\" \"node --watch terminal-server/server.ts\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
