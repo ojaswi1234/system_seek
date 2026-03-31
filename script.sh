@@ -10,3 +10,9 @@ fi
 
 
 docker exec -ti redisinsight redis-cli -h redis-server -p 6379 ping
+
+
+
+# testing the telegram bot alert
+
+curl -X GET "http://localhost:3000/api/cron/watchtower" -H "Authorization: Bearer supersecret"
