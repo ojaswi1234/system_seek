@@ -3,7 +3,8 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import * as pty from "node-pty";
 import dotenv from "dotenv";
-import os from "os";
+import path from 'path';
+//import os from "os";
 dotenv.config();
 
 const app = express();
@@ -25,23 +26,32 @@ function startServer() {
     try {
       const shell =  "sh";
       const customUser = socket.handshake.auth.username || "drift_user";
-  const targetContainer = "ubuntu:latest"; 
+  const targetContainer = "ubuntu:latest";
+ 
 
 // The executable is now Docker, not bash
+// Define where you are storing all cloned repos on your GCP VM
+const REPOS_BASE_DIR = '/home/ubuntu/drift_repos'; 
+
+// Example: If the repo name is "system_seek", 
+// the path becomes "/home/ubuntu/drift_repos/system_seek"
+const repoName = "system_seek"; // You should eventually get this from the frontend
+const hostRepoPath = path.join(REPOS_BASE_DIR, repoName);
+
 const command = "docker";
 
-// Arguments array for the Docker CLI
 const args = [
-  "run",        // Use 'exec' if connecting to an already running container
-  "--rm",       // Crucial: Deletes the container when the user closes the shell
-  "-it",        // Keeps STDIN open and allocates a pseudo-TTY
-  "-w", "/projects", // Set initial working directory to /projects
-  "-e", "TERM=dumb",
+  "run",
+  "--rm",
+  "-it",
+  // MOUNT: Link the host folder to the container's /projects folder
+  "-v", `${hostRepoPath}:/projects`, 
+  "-w", "/projects",
+  "-e", "TERM=xterm-256color", // Use xterm-256color for better terminal support
   "-e", `PS1=DRIFT_SERVER_PROMPT|\\w> `,
-  "-e", "PROMPT_COMMAND=", // Disable window title sequences
-  // "--network", "none", // Optional: Completely disable internet inside the shell
-  targetContainer,
-  "bash",       // The shell to run INSIDE the container
+  "-e", "PROMPT_COMMAND=",
+  targetContainer, // The image name (e.g., "ubuntu:latest")
+  "bash",
   "--noprofile",
   "--norc"
 ];
