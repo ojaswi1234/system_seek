@@ -62,14 +62,21 @@ export async function POST(req: Request) {
     console.log(`Ping result for ${targetUrl}: status=${status}, latency=${latency}ms, reason=${reason}`);
 
     const redisKey = `monitor:stats:${webServer._id}`;
+    const lastChecked = new Date().toISOString();
     await redis.hset(redisKey, {
         status,
         latency,
         reason,
-        lastChecked: new Date().toISOString()
+        lastChecked,
     });
     // Set expiry if you want, e.g., 24 hours
     // await redis.expire(redisKey, 86400);
+
+    // Publish update to system_metrics channel so Socket.io can push it to clients
+    await redis.publish(
+      'system_metrics',
+      JSON.stringify({ id: webServer._id.toString(), status, latency, reason, lastChecked }),
+    );
 
     // 2. Prepare response
     const responseData = webServer.toObject();

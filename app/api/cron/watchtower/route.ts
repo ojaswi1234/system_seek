@@ -43,12 +43,19 @@ export async function GET(req: Request) {
 
       // Update the "Speed Layer" (Redis) so the UI dashboard is fast
       const statsKey = `monitor:stats:${server._id}`;
+      const lastChecked = new Date().toISOString();
       await redis.hset(statsKey, {
         status,
         latency,
         reason,
-        lastChecked: new Date().toISOString(),
+        lastChecked,
       });
+
+      // Publish update so Socket.io can push the change to connected clients
+      await redis.publish(
+        'system_metrics',
+        JSON.stringify({ id: server._id.toString(), status, latency, reason, lastChecked }),
+      );
 
       // THE ALERT FATIGUE LOGIC
       const alertKey = `alert_sent:${server._id}`;

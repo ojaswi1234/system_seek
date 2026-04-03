@@ -1,20 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import MonitorCard from "@/components/monitorCard";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import WebserverMonitorModal from "@/components/modals/webserver/webserverMonitorModal";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import GlobalLoader from "@/components/GlobalLoader";
-import Github from "next-auth/providers/github";
 import GithubRepoModal from "@/components/modals/githubRepos/githubrepoModal";
+import { io, Socket } from "socket.io-client";
 
 function Page() {
   const [website, setWebsite] = useState([] as any[]);
   const [container, setContainer] = useState([] as any[]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const[isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
 
   const { status } = useSession({
     required: true,
@@ -46,6 +47,59 @@ function Page() {
       fetchMonitors();
     }
   }, [status]);
+
+  // Establish a Socket.io connection and listen for real-time metric updates
+  useEffect(() => {
+    let active = true;
+
+    // Hit the socket endpoint once to initialise the server-side Socket.io instance
+    const initSocket = async () => {
+      try {
+        await fetch('/api/socket');
+      } catch (err) {
+        console.error('Failed to initialise Socket.io server:', err);
+      }
+
+      if (!active || socketRef.current) return;
+
+      const socket = io({
+        path: '/api/socket',
+        addTrailingSlash: false,
+      });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        console.log('Socket.io connected:', socket.id);
+      });
+
+      socket.on(
+        'metric_update',
+        (data: { id: string; status: string; latency: number; reason: string; lastChecked: string }) => {
+          setWebsite((prev) =>
+            prev.map((w) => {
+              const wId = String(w.id || w._id);
+              if (wId === data.id) {
+                return { ...w, status: data.status, latency: data.latency, reason: data.reason, lastChecked: data.lastChecked };
+              }
+              return w;
+            }),
+          );
+        },
+      );
+
+      socket.on('disconnect', () => {
+        console.log('Socket.io disconnected');
+      });
+    };
+
+    initSocket();
+
+    return () => {
+      active = false;
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
   return (
     <div className="flex flex-col h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black overflow-hidden">
       {/* Header Section */}
