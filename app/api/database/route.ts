@@ -7,6 +7,8 @@ import { getServerSession } from "next-auth/next";
 // UPDATE THIS PATH TO MATCH YOUR NEXTAUTH CONFIG LOCATION:
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // 1. Authenticate the GET request

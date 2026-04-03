@@ -25,7 +25,14 @@ function Page() {
 
   const fetchMonitors = () => {
     setIsLoading(true);
-    fetch("/api/database")
+    fetch("/api/database", { 
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
       .then(async (res) => {
         if (!res.ok) {
           const text = await res.text();
@@ -99,6 +106,9 @@ function Page() {
                   onCheck={(id) => {
                     fetch('/api/monitor/ping', {
                       method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
                       body: JSON.stringify({ id }),
                     }).finally(() => fetchMonitors());
                   }}
