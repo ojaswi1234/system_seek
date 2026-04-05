@@ -50,6 +50,21 @@ export async function GET(req: Request) {
         lastChecked: new Date().toISOString(),
       });
 
+      const metricPayload = {
+        id: server._id.toString(),
+        url: server.url,
+        status,
+        latency,
+        reason,
+        lastChecked: new Date().toISOString(),
+      };
+
+      try {
+        await redis.publish("system_metrics", JSON.stringify(metricPayload));
+      } catch (publishError) {
+        console.error("Failed to publish system_metrics update:", publishError);
+      }
+
       // THE ALERT FATIGUE LOGIC
       const alertKey = `alert_sent:${server._id}`;
 

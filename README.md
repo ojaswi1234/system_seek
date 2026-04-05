@@ -58,6 +58,8 @@ NEXTAUTH_URL=your_oauth_app_redirect_url
 NEXT_PUBLIC_API_BASE_URL=your_local_url
 MONGODB_URI=your_mongodb_connection_connection_string
 REDIS_URL=your_local_redis_server_url
+NEXT_PUBLIC_SOCKET_URL=your_realtime_service_url_for_production
+NEXT_PUBLIC_SOCKET_PATH=/socket.io
 ```
 
 Notes:
@@ -65,6 +67,8 @@ Notes:
 - GITHUB_ID and GITHUB_SECRET are required at startup.
 - MONGODB_URI is required by the database connector.
 - REDIS_URL is optional in code (a default is used if omitted), but setting it explicitly is recommended.
+- NEXT_PUBLIC_SOCKET_URL is optional. If set, monitors page connects to that external Socket.io service.
+- NEXT_PUBLIC_SOCKET_PATH defaults to /api/socketio for local internal route, but should be /socket.io for external realtime-server.
 
 ## Installation
 
@@ -89,7 +93,7 @@ App URL: http://localhost:3000
 
 ## Available Scripts
 
-```bash
+
 ```bash
 # Install all dependencies (main app + terminal-server)
 npm run setup
@@ -123,3 +127,29 @@ npm run lint
 - Dockerfile, docker-compose.yaml, and Jenkinsfile are present but currently empty.
 - The pipelines page is currently a placeholder UI.
 - Playwright test file is scaffold/example and not yet project-specific.
+
+## Realtime Socket Service (Render)
+
+The monitor UI supports two socket modes:
+
+- Local/internal mode: uses Next API route at /api/socket and socket path /api/socketio
+- External mode: uses NEXT_PUBLIC_SOCKET_URL (recommended for Vercel + Render)
+
+Use the standalone service in realtime-server for production realtime pushes.
+
+Render service configuration:
+
+- Root Directory: realtime-server
+- Build Command: npm install
+- Start Command: npm start
+
+Required env vars on Render:
+
+- REDIS_URL=your_shared_redis_url
+- CLIENT_ORIGINS=https://your-frontend-domain.vercel.app
+- METRICS_CHANNEL=system_metrics (optional, defaults to system_metrics)
+
+Required frontend env vars (Vercel or frontend host):
+
+- NEXT_PUBLIC_SOCKET_URL=https://your-render-service.onrender.com
+- NEXT_PUBLIC_SOCKET_PATH=/socket.io

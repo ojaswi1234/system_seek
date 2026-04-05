@@ -6,8 +6,17 @@ import WebserverMonitorModal from "@/components/modals/webserver/webserverMonito
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import GlobalLoader from "@/components/GlobalLoader";
-import Github from "next-auth/providers/github";
 import GithubRepoModal from "@/components/modals/githubRepos/githubrepoModal";
+import { io, Socket } from "socket.io-client";
+
+type MonitorSocketPayload = {
+  id: string;
+  url: string;
+  status: "up" | "down" | "online" | "offline" | "pending" | "error";
+  latency: number;
+  reason: string;
+  lastChecked: string;
+};
 
 function Page() {
   const [website, setWebsite] = useState([] as any[]);
@@ -15,6 +24,8 @@ function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const[isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const socketRef = React.useRef<Socket | null>(null);
 
   const { status } = useSession({
     required: true,
@@ -53,6 +64,86 @@ function Page() {
       fetchMonitors();
     }
   }, [status]);
+
+  React.useEffect(() => {
+    if (status !== "authenticated") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const connectSocket = async () => {
+      const socketBaseUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+      const shouldUseInternalSocketRoute = !socketBaseUrl;
+      const socketPath =
+        process.env.NEXT_PUBLIC_SOCKET_PATH ||
+        (shouldUseInternalSocketRoute ? "/api/socketio" : "/socket.io");
+
+      if (shouldUseInternalSocketRoute) {
+        try {
+          await fetch("/api/socket", { method: "GET" });
+        } catch (error) {
+          console.error("Failed to initialize monitor socket route:", error);
+        }
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const socket = io(socketBaseUrl || undefined, {
+        path: socketPath,
+        transports: ["websocket", "polling"],
+        reconnection: true,
+        reconnectionAttempts: 20,
+        reconnectionDelay: 1000,
+      });
+
+      socketRef.current = socket;
+
+      socket.on("connect", () => {
+        setIsSocketConnected(true);
+      });
+
+      socket.on("disconnect", () => {
+        setIsSocketConnected(false);
+      });
+
+      socket.on("monitor:metric", (payload: MonitorSocketPayload) => {
+        setWebsite((prev) =>
+          prev.map((monitor: any) => {
+            const monitorId = String(monitor.id || monitor._id || "");
+            if (monitorId !== payload.id) {
+              return monitor;
+            }
+
+            return {
+              ...monitor,
+              status: payload.status,
+              latency: payload.latency,
+              reason: payload.reason,
+              lastChecked: payload.lastChecked,
+            };
+          }),
+        );
+      });
+    };
+
+    connectSocket().catch((error) => {
+      console.error("Failed to connect monitor socket:", error);
+    });
+
+    return () => {
+      cancelled = true;
+      socketRef.current?.off("connect");
+      socketRef.current?.off("disconnect");
+      socketRef.current?.off("monitor:metric");
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      setIsSocketConnected(false);
+    };
+  }, [status]);
+
   return (
     <div className="flex flex-col h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black overflow-hidden">
       {/* Header Section */}
@@ -67,6 +158,10 @@ function Page() {
       <p className="text-md text-gray-600 mt-4 mb-10 shrink-0">
         Monitor the uptime and performance of your web servers & containers with
         real-time metrics and alerts.
+      </p>
+
+      <p className="text-xs font-mono tracking-wider text-gray-500 mb-6 shrink-0">
+        SOCKET_LINK: {isSocketConnected ? "CONNECTED" : "DISCONNECTED"}
       </p>
 
       {/* Main Content Area - Stacks on mobile, side-by-side on large screens */}

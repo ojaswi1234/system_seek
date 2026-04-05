@@ -68,6 +68,21 @@ export async function POST(req: Request) {
         reason,
         lastChecked: new Date().toISOString()
     });
+
+    const metricPayload = {
+      id: webServer._id.toString(),
+      url: targetUrl,
+      status,
+      latency,
+      reason,
+      lastChecked: new Date().toISOString(),
+    };
+
+    try {
+      await redis.publish("system_metrics", JSON.stringify(metricPayload));
+    } catch (publishError) {
+      console.error("Failed to publish system_metrics update:", publishError);
+    }
     // Set expiry if you want, e.g., 24 hours
     // await redis.expire(redisKey, 86400);
 
