@@ -1,2 +1,5 @@
 terminal-server
+terminal-server/**
 node_modules 
+realtime-server
+realtime-server/**
