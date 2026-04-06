@@ -41,7 +41,7 @@ function startServer() {
     try {
       const shell =  "sh";
       const customUser = socket.handshake.auth.username || "drift_user";
-  const targetContainer = "ubuntu:latest";
+  const targetContainer = "alpine:latest";
  
 
 // The executable is now Docker, not bash

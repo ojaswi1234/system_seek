@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Terminal as TerminalIcon, Plus, X, Users, User } from "lucide-react";
+import { Terminal as TerminalIcon, Plus, X } from "lucide-react";
 import GlobalLoader from "@/components/GlobalLoader";
 import { io, Socket } from "socket.io-client";
 import anime from "animejs";
@@ -26,15 +26,11 @@ function TerminalInstance({
   sysName,
   userName,
   tabId,
-  mode,
-  roomId
 }: {
   isActive: boolean;
   sysName: string;
   userName: string;
   tabId: string;
-  mode: "individual" | "team";
-  roomId: string | null;
 }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
@@ -181,12 +177,6 @@ function TerminalInstance({
           </div>
           <span className="text-xs text-zinc-600 font-mono">DIR: {currentDir}</span>
         </div>
-        {mode === "team" && roomId && (
-          <div className="flex items-center gap-2">
-            <Users size={12} className="text-emerald-500/70" />
-            <span className="text-xs font-mono text-emerald-500/70">ROOM: {roomId}</span>
-          </div>
-        )}
       </div>
 
       {/* Terminal View */}
@@ -197,7 +187,7 @@ function TerminalInstance({
           </pre>
           <div className="space-y-1 text-zinc-400 font-mono">
             <p>Welcome to DriftSeeker Terminal [Instance: {tabId}]</p>
-            <p>Authorized User: {userName} <span className="text-zinc-600">({mode.toUpperCase()} MODE)</span></p>
+            <p>Authorized User: {userName}</p>
           </div>
           <div className="h-px w-24 bg-gradient-to-r from-emerald-500/50 to-transparent my-4" />
         </div>
@@ -240,11 +230,6 @@ export default function Page() {
   const [activeTabId, setActiveTabId] = useState("tab-1");
   const tabCounter = useRef(1);
 
-  const [mode, setMode] = useState<"individual" | "team">("individual");
-  const [showTeamModal, setShowTeamModal] = useState(false);
-  const [roomIdInput, setRoomIdInput] = useState("");
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
-
   // Layout Animation
   const layoutRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -281,15 +266,6 @@ export default function Page() {
     // Switch active tab if we closed the currently active one
     if (activeTabId === idToClose) {
       setActiveTabId(newTabs[newTabs.length - 1].id);
-    }
-  };
-
-  const handleModeSwitch = (newMode: "individual" | "team") => {
-    if (newMode === "team") {
-      setShowTeamModal(true);
-    } else {
-      setMode("individual");
-      setActiveRoomId(null);
     }
   };
 
@@ -343,34 +319,6 @@ export default function Page() {
               <Plus size={14} />
             </button>
           </div>
-
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-1 px-3 border-l border-zinc-800/60 shrink-0">
-            <div className="flex bg-zinc-900 rounded-[6px] p-0.5">
-              <button
-                onClick={() => handleModeSwitch("individual")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-[4px] text-xs font-mono transition-all duration-200 ${
-                  mode === "individual" 
-                    ? "bg-zinc-800 text-zinc-200 shadow-sm" 
-                    : "text-zinc-500 hover:text-zinc-400"
-                }`}
-              >
-                <User size={12} />
-                <span className="hidden sm:inline">Solo</span>
-              </button>
-              <button
-                onClick={() => handleModeSwitch("team")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-[4px] text-xs font-mono transition-all duration-200 ${
-                  mode === "team" 
-                    ? "bg-emerald-500/20 text-emerald-400 shadow-sm" 
-                    : "text-zinc-500 hover:text-zinc-400"
-                }`}
-              >
-                <Users size={12} />
-                <span className="hidden sm:inline">Team</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Terminals Container */}
@@ -382,65 +330,10 @@ export default function Page() {
               isActive={activeTabId === tab.id}
               sysName={sysName}
               userName={userName}
-              mode={mode}
-              roomId={activeRoomId}
             />
           ))}
         </div>
       </div>
-
-      {/* Team Room Modal */}
-      {showTeamModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 w-[380px] shadow-2xl relative overflow-hidden">
-            {/* Modal Inner Gradient */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500" />
-            
-            <h3 className="text-lg font-mono text-zinc-200 mb-1 flex items-center gap-2">
-              <Users size={18} className="text-emerald-500" />
-              Join Team Room
-            </h3>
-            <p className="text-xs text-zinc-500 mb-6">Enter a shared Room ID to collaborate with your team in real-time.</p>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (roomIdInput.trim()) {
-                setMode("team");
-                setActiveRoomId(roomIdInput.trim());
-                setShowTeamModal(false);
-              }
-            }}>
-              <input
-                autoFocus
-                className="w-full bg-[#0c0c0c] border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-200 font-mono text-sm mb-6 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all placeholder-zinc-700"
-                placeholder="e.g. core-platform-ops"
-                value={roomIdInput}
-                onChange={(e) => setRoomIdInput(e.target.value)}
-              />
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTeamModal(false);
-                    if (mode !== "team") setMode("individual");
-                  }}
-                  className="px-4 py-2 rounded-lg text-xs font-mono text-zinc-400 hover:bg-zinc-900 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!roomIdInput.trim()}
-                  className="px-4 py-2 rounded-lg text-xs font-mono bg-emerald-500 text-zinc-950 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
-                >
-                  Connect to Room
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
