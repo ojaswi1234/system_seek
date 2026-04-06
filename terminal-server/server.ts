@@ -21,7 +21,7 @@ const io = new Server(httpServer, {
 
 
 function startServer() {
-  const targetContainer = "ubuntu:latest";
+  const targetContainer = "alpine:latest";
   
   console.log(`Pre-pulling ${targetContainer} to ensure clean terminal starts...`);
   try {
@@ -59,6 +59,8 @@ const args = [
   "run",
   "--rm",
   "-it",
+  "--memory", "256m",
+"--cpus", "0.5",
   // MOUNT: Link the host folder to the container's /projects folder
   "-v", `${hostRepoPath}:/projects`, 
   "-w", "/projects",
@@ -66,9 +68,7 @@ const args = [
   "-e", `PS1=DRIFT_SERVER_PROMPT|\\w> `,
   "-e", "PROMPT_COMMAND=",
   targetContainer, // The image name (e.g., "ubuntu:latest")
-  "bash",
-  "--noprofile",
-  "--norc"
+  "sh"
 ];
   console.log(`Secure Shell Session Started for: ${customUser}`);
       ptyProcess = pty.spawn(command, args, {
