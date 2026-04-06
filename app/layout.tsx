@@ -5,10 +5,16 @@ import Providers from "@/components/Providers";
 import Navbar from "@/components/Navbar";
 import StyledComponentsRegistry from "@/lib/registry";
 import nextFontLocal from 'next/font/local';
+import { Press_Start_2P } from "next/font/google";
 
 const consolas = nextFontLocal({
   src: '../public/fonts/Consolas.ttf',
   variable: '--font-consolas',
+});
+const pressStart = Press_Start_2P({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-press-start",
 });
 
 
@@ -38,7 +44,7 @@ export default function RootLayout({children}: Readonly<{children: React.ReactNo
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${consolas.variable} antialiased overflow-x-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${consolas.variable} ${pressStart.variable} antialiased overflow-x-hidden`}
       >
         
         <Providers>
