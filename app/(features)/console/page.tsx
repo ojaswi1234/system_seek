@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { Terminal as TerminalIcon, Plus, X } from "lucide-react";
+import { Terminal as TerminalIcon, Plus, X, Users, User } from "lucide-react";
 import GlobalLoader from "@/components/GlobalLoader";
+import TeamRoomModal from "@/components/modals/user/TeamRoomModal";
 import { io, Socket } from "socket.io-client";
 import anime from "animejs";
 
@@ -32,11 +33,15 @@ function TerminalInstance({
   sysName,
   userName,
   tabId,
+  mode,
+  roomId,
 }: {
   isActive: boolean;
   sysName: string;
   userName: string;
   tabId: string;
+  mode: "individual" | "team";
+  roomId: string | null;
 }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
@@ -183,6 +188,12 @@ function TerminalInstance({
           </div>
           <span className="text-xs text-zinc-600 font-mono">DIR: {currentDir}</span>
         </div>
+        {mode === "team" && roomId && (
+          <div className="flex items-center gap-2">
+            <Users size={12} className="text-emerald-500/70" />
+            <span className="text-xs font-mono text-emerald-500/70">ROOM: {roomId}</span>
+          </div>
+        )}
       </div>
 
       {/* Terminal View */}
@@ -191,15 +202,18 @@ function TerminalInstance({
          <div
   style={{ fontFamily: "var(--font-press-start), monospace" }}
   className="text-2xl md:text-6xl bg-clip-text text-transparent 
-  bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 mb-6 select-none"
+  bg-linear-to-r from-emerald-400 via-cyan-400 to-blue-500 mb-6 select-none"
 >
   Drift_Seeker
 </div>
           <div className="space-y-1 text-zinc-400 font-mono">
             <p>Welcome to DriftSeeker Terminal [Instance: {tabId}]</p>
-            <p>Authorized User: {userName}</p>
+            <p>
+              Authorized User: {userName}{" "}
+              <span className="text-zinc-600">({mode.toUpperCase()} MODE)</span>
+            </p>
           </div>
-          <div className="h-px w-24 bg-gradient-to-r from-emerald-500/50 to-transparent my-4" />
+          <div className="h-px w-24 bg-linear-to-r from-emerald-500/50 to-transparent my-4" />
         </div>
 
         <div className="space-y-1.5 mb-4">
@@ -239,6 +253,11 @@ export default function Page() {
   const [tabs, setTabs] = useState<TabData[]>([{ id: "tab-1", name: "terminal-1" }]);
   const [activeTabId, setActiveTabId] = useState("tab-1");
   const tabCounter = useRef(1);
+  const [mode, setMode] = useState<"individual" | "team">("individual");
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [memberIdInput, setMemberIdInput] = useState("");
+  const [memberRoleInput, setMemberRoleInput] = useState("");
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   // Layout Animation
   const layoutRef = useRef<HTMLDivElement>(null);
@@ -279,6 +298,16 @@ export default function Page() {
     }
   };
 
+  const handleModeSwitch = (newMode: "individual" | "team") => {
+    if (newMode === "team") {
+      setShowTeamModal(true);
+      return;
+    }
+
+    setMode("individual");
+    setActiveRoomId(null);
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 md:p-8 font-sans selection:bg-emerald-500/30">
       <style>{`
@@ -302,7 +331,7 @@ export default function Page() {
               <div
                 key={tab.id}
                 onClick={() => setActiveTabId(tab.id)}
-                className={`group flex items-center gap-3 px-4 py-2.5 text-xs font-mono cursor-pointer border-r border-zinc-800/60 transition-all duration-200 min-w-[140px] max-w-[200px] ${
+                className={`group flex items-center gap-3 px-4 py-2.5 text-xs font-mono cursor-pointer border-r border-zinc-800/60 transition-all duration-200 min-w-35 max-w-50 ${
                   activeTabId === tab.id
                     ? "bg-[#0c0c0c] text-zinc-200"
                     : "bg-zinc-900/50 text-zinc-500 hover:bg-zinc-900"
@@ -329,6 +358,33 @@ export default function Page() {
               <Plus size={14} />
             </button>
           </div>
+
+          <div className="flex items-center gap-1 px-3 border-l border-zinc-800/60 shrink-0">
+            <div className="flex bg-zinc-900 rounded-md p-0.5">
+              <button
+                onClick={() => handleModeSwitch("individual")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-sm text-xs font-mono transition-all duration-200 ${
+                  mode === "individual"
+                    ? "bg-zinc-800 text-zinc-200 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-400"
+                }`}
+              >
+                <User size={12} />
+                <span className="hidden sm:inline">Solo</span>
+              </button>
+              <button
+                onClick={() => handleModeSwitch("team")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-sm text-xs font-mono transition-all duration-200 ${
+                  mode === "team"
+                    ? "bg-emerald-500/20 text-emerald-400 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-400"
+                }`}
+              >
+                <Users size={12} />
+                <span className="hidden sm:inline">Team</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Terminals Container */}
@@ -340,10 +396,25 @@ export default function Page() {
               isActive={activeTabId === tab.id}
               sysName={sysName}
               userName={userName}
+              mode={mode}
+              roomId={activeRoomId}
             />
           ))}
         </div>
       </div>
+
+      <TeamRoomModal
+        isOpen={showTeamModal}
+        memberIdInput={memberIdInput}
+        onMemberIdChange={setMemberIdInput}
+        memberRoleInput={memberRoleInput}
+        onMemberRoleChange={setMemberRoleInput}
+        onCancel={() => {
+          setShowTeamModal(false);
+          if (mode !== "team") setMode("individual");
+        }}
+       
+      />
     </div>
   );
 }
