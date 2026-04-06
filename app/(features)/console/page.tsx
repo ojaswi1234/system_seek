@@ -170,7 +170,7 @@ function TerminalInstance({
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 flex flex-col ${isActive ? "z-10" : "opacity-0 pointer-events-none z-0"}`}
+      className={`absolute inset-0 flex flex-col ${isActive ? "z-10" : "hidden"}`}
     >
       {/* Console Header Stats (Minimalist) */}
       <div className="flex items-center justify-between px-6 py-2 border-b border-zinc-800/50 bg-zinc-900/30">
@@ -190,19 +190,17 @@ function TerminalInstance({
       </div>
 
       {/* Terminal View */}
-      <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto font-mono text-sm scrollbar-hide text-zinc-300">
-        {history.length === 0 && (
-          <div className="mb-8 opacity-90 text-xs">
-            <pre className="font-mono text-[8px] md:text-[10px] bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 leading-tight select-none mb-4 whitespace-pre-wrap">
-              {ASCII_ART}
-            </pre>
-            <div className="space-y-1 text-zinc-400 font-mono">
-              <p>Welcome to DriftSeeker Terminal [Instance: {tabId}]</p>
-              <p>Authorized User: {userName} <span className="text-zinc-600">({mode.toUpperCase()} MODE)</span></p>
-            </div>
-            <div className="h-px w-24 bg-gradient-to-r from-emerald-500/50 to-transparent my-4" />
+      <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto font-mono text-sm custom-scrollbar text-zinc-300">
+        <div className="mb-8 opacity-90 text-xs">
+          <pre className="font-mono text-[8px] md:text-[10px] bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 leading-tight select-none mb-4 whitespace-pre-wrap">
+            {ASCII_ART}
+          </pre>
+          <div className="space-y-1 text-zinc-400 font-mono">
+            <p>Welcome to DriftSeeker Terminal [Instance: {tabId}]</p>
+            <p>Authorized User: {userName} <span className="text-zinc-600">({mode.toUpperCase()} MODE)</span></p>
           </div>
-        )}
+          <div className="h-px w-24 bg-gradient-to-r from-emerald-500/50 to-transparent my-4" />
+        </div>
 
         <div className="space-y-1.5 mb-4">
           {history.map((line, i) => (
@@ -297,6 +295,12 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 md:p-8 font-sans selection:bg-emerald-500/30">
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.5); }
+      `}</style>
       <div 
         ref={layoutRef}
         className="w-full max-w-6xl h-[85vh] bg-[#0c0c0c] border border-zinc-800/60 rounded-xl shadow-2xl flex flex-col overflow-hidden"
