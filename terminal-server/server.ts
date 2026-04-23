@@ -168,7 +168,8 @@ app.post("/run-github-stress-test", express.json(), (req, res) => {
 
   // The massive chained command. 
   // --rm ensures the container and the cloned code are permanently deleted the second this finishes.
-  const command = `docker run --rm --memory="512m" --cpus="0.8" node:alpine sh -c "apk add --no-cache git && npm install -g autocannon && git clone ${githubUrl} /temp_app && cd /temp_app && npm install && (npm start &) && sleep 10 && autocannon -c 50 -a 2000 -j http://localhost:3000"`;
+  // Update this specific line in terminal-server/server.ts
+  const command = `docker run --rm --memory="512m" --cpus="0.8" node:alpine sh -c "apk add --no-cache git && npm install -g autocannon && git clone ${githubUrl} /temp_app && cd /temp_app && npm install --legacy-peer-deps && (npm start &) && sleep 10 && autocannon -c 50 -a 2000 -j http://localhost:3000"`;
 
   exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
     if (error) {

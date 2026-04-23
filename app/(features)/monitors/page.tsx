@@ -271,7 +271,7 @@ export default function Page() {
           </button>
           
           {engineError && (
-             <div className="shrink-0 mb-4 bg-red-50 text-red-600 p-3 rounded-lg border border-red-200 text-sm">
+             <div className="shrink-0 mb-4 bg-red-50 text-red-600 p-3 rounded-lg border border-red-200 text-sm font-sans">
                <strong>Execution Error:</strong> {engineError}
              </div>
           )}
