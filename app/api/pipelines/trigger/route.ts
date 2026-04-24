@@ -8,23 +8,35 @@ export async function POST(req: NextRequest) {
     const { githubUrl } = await req.json();
     if (!githubUrl) return NextResponse.json({ success: false, error: "Missing GitHub URL" }, { status: 400 });
 
-    // 1. Command GCP to execute the pipeline
-    // Make sure you replace YOUR_GCP_IP with the actual IP address!
-    const server = process.env.NEXT_PUBLIC_SERVER_BASE_URL || "http://localhost:3001";
+    // Ensure no trailing slashes ruin the URL
+    let server = process.env.NEXT_PUBLIC_SERVER_BASE_URL || "http://localhost:3001";
+    if (server.endsWith('/')) server = server.slice(0, -1);
+
     const gcpResponse = await fetch(`${server}/run-github-stress-test`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true" // 1. Bypasses the Ngrok HTML intercept trap
+      },
       body: JSON.stringify({ githubUrl }),
     });
 
-    const data = await gcpResponse.json();
+    // 2. STOP blindly parsing JSON. Read the raw text first.
+    const responseText = await gcpResponse.text();
 
-    if (!gcpResponse.ok || !data.success) {
-      return NextResponse.json({ success: false, error: data.error || "GCP Execution Failed" }, { status: 500 });
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      // 3. If it is HTML, we catch it here and expose exactly what webpage intercepted the call
+      console.error(`[GCP FETCH ERROR] Status: ${gcpResponse.status} | Raw Response:`, responseText.substring(0, 200));
+      throw new Error(`Backend returned HTML instead of JSON.  (Status ${gcpResponse.status})`);
     }
 
-    // 2. We DO NOT save to MongoDB here anymore because GCP is still running the test.
-    // We just tell the frontend that the process successfully started.
+    if (!gcpResponse.ok || !data.success) {
+      return NextResponse.json({ success: false, error: data.error || "server error" }, { status: gcpResponse.status });
+    }
+
     return NextResponse.json({ success: true, message: "Pipeline started" }, { status: 200 });
 
   } catch (error: any) {
