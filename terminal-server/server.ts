@@ -183,13 +183,23 @@ app.post("/run-github-stress-test", express.json(), (req, res) => {
         requestsPerSecond: stats.requests.average,
       };
 
-      // 3. POST the results back to a NEW Vercel webhook or update DB directly
-      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/pipelines/callback`, {
+     
+      const targetVercelUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://drift-seek.vercel.app";
+      
+      // console.log(`[STRESS ENGINE] Sending results back to: ${targetVercelUrl}/api/pipelines/callback`);
+
+      await fetch(`${targetVercelUrl}/api/pipelines/callback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ githubUrl, metrics })
+      })
+      .then(res => {
+         if (!res.ok) console.error("[STRESS ENGINE] Vercel rejected the callback payload.", res.status);
+         else console.log("[STRESS ENGINE] Callback successful. Data saved to MongoDB.");
+      })
+      .catch(err => {
+         console.error("[STRESS ENGINE FATAL] Could not reach Vercel API:", err.message);
       });
-
     } catch (parseErr) {
       console.error("Failed to process background stats", parseErr);
     }
