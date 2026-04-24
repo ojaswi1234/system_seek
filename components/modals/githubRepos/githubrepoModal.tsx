@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import { GitFork, Star, Lock, X } from 'lucide-react';
+
 
 export interface GitHubRepo {
   id: number;
@@ -23,6 +24,11 @@ interface GithubRepoModalProps {
 
 export default function GithubRepoModal({ isOpen, onClose, onSelectRepo, repos, isLoading }: GithubRepoModalProps) {
   if (!isOpen) return null;
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredRepos = repos.filter(repo => 
+    repo.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -40,6 +46,13 @@ export default function GithubRepoModal({ isOpen, onClose, onSelectRepo, repos, 
             <X size={20} />
           </button>
         </div>
+        <input 
+          type="text" 
+          placeholder="Search repositories..." 
+          className="w-full mb-4 px-4 py-2 border border-gray-200 rounded-lg outline-none" 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)} 
+        />
         
         {/* Repository List */}
         <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2 scrollbtn">
@@ -48,12 +61,12 @@ export default function GithubRepoModal({ isOpen, onClose, onSelectRepo, repos, 
                 <GitFork size={32} className="mb-3 opacity-50" />
                 <span className="text-sm tracking-widest uppercase font-bold">Fetching GitHub Data...</span>
              </div>
-          ) : repos.length === 0 ? (
+          ) : filteredRepos.length === 0 ? (
              <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                No repositories found on this account.
+                No repositories found matching your search.
              </div>
           ) : (
-            repos.map((repo) => {
+            filteredRepos.map((repo) => {
               const targetUrl = `https://github.com/${repo.owner.login}/${repo.name}`;
 
               return (
