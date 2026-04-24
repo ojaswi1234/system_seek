@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
 
     // 1. Command GCP to execute the pipeline
     // Make sure you replace YOUR_GCP_IP with the actual IP address!
-    const gcpResponse = await fetch("http://YOUR_GCP_IP:3001/run-github-stress-test", {
+    const server = process.env.NEXT_PUBLIC_SERVER_BASE_URL || "http://localhost:3001";
+    const gcpResponse = await fetch(`${server}/run-github-stress-test`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ githubUrl }),
