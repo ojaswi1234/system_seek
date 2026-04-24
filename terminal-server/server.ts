@@ -131,7 +131,7 @@ const args = [
 
 
   httpServer.listen(port, hostname, () => {
-    console.log(`Handyman Terminal running on http://${hostname}:${port}`);
+    console.log(`Handyman Terminal running ....`);
   });
 }
 
