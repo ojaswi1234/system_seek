@@ -251,11 +251,11 @@ export default function Page() {
           </button>
 
           {isLoading ? (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[250px] border-2 border-dashed border-gray-200 rounded-lg p-6">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-62.5 border-2 border-dashed border-gray-200 rounded-lg p-6">
               <GlobalLoader />
             </div>
           ) : website.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[250px] border-2 border-dashed border-gray-200 rounded-lg p-6">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-62.5 border-2 border-dashed border-gray-200 rounded-lg p-6">
               <p className="text-gray-400 text-center">
                 Add your website to monitor
               </p>
@@ -318,7 +318,7 @@ export default function Page() {
           )}
 
           {isEngineRunning ? (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[250px] border-2 border-dashed border-emerald-500/50 bg-emerald-50/50 rounded-lg p-6 animate-in fade-in">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-62.5 border-2 border-dashed border-emerald-500/50 bg-emerald-50/50 rounded-lg p-6 animate-in fade-in">
               <Activity className="animate-pulse text-emerald-500 mb-4" size={40} />
               <p className="text-emerald-700 font-bold mb-2 uppercase tracking-wide">Executing Pipeline</p>
               <p className="text-xs text-emerald-600 text-center font-mono max-w-[80%]">
@@ -328,7 +328,7 @@ export default function Page() {
               <p className="text-[10px] text-emerald-500 mt-2 italic">Results will appear shortly.</p>
             </div>
           ) : container.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[250px] border-2 border-dashed border-gray-200 rounded-lg p-6">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-62.5 border-2 border-dashed border-gray-200 rounded-lg p-6">
               <p className="text-gray-400 text-center">
                 Monitor Containers in an isolated environment.<br/>
                 <span className="text-sm">Click "+ Add Container" to stress test a repo.</span>
