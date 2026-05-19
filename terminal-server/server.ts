@@ -52,7 +52,7 @@ function startServer() {
   targetContainer, 
   "sh", 
   "-c", 
-  "apk update && apk add --no-cache bash git openrc curl && echo 'DRIFT_CLEAR_SCREEN' && echo 'PS1=\"\"' > ~/.bashrc && exec bash"
+  "apk update && apk add --no-cache bash git openrc curl && sleep 2 && echo 'DRIFT_CLEAR_SCREEN' && echo 'PS1=\"\"' > ~/.bashrc && exec bash"
 ];
       console.log(`Secure Shell Session Started for: ${customUser}`);
       ptyProcess = pty.spawn(command, args, {
