@@ -1,0 +1,54 @@
+name: AI Auditor (Ollama)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repoUrl:
+        description: 'Target repository URL to analyze'
+        required: true
+      caseFileText:
+        description: 'Optional case file text (logs, breakpoint)'
+        required: false
+      jobId:
+        description: 'Unique job identifier'
+        required: true
+
+jobs:
+  run-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Ollama model cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama/models
+          key: ollama-qwen2.5-coder-3b
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        run: |
+          ollama serve &
+          sleep 2
+
+      - name: Pull model
+        run: |
+          ollama pull qwen2.5-coder:3b || true
+
+      - name: Install Node.js deps
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run audit runner
+        env:
+          REPO_URL: ${{ github.event.inputs.repoUrl }}
+          CASE_FILE_TEXT: ${{ github.event.inputs.caseFileText }}
+          JOB_ID: ${{ github.event.inputs.jobId }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          node scripts/ollama_audit_runner.js

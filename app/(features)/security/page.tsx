@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { GitFork, Star, Lock, X, Fingerprint, ShieldCheck, Upload, FileText, Terminal, Key } from 'lucide-react';
+import { GitFork, Star, Lock, X, Fingerprint, ShieldCheck, Upload, FileText, Terminal } from 'lucide-react';
 import { GitHubRepo } from '@/components/modals/githubRepos/githubrepoModal';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
@@ -14,9 +14,8 @@ export default function Page() {
   const [caseFile, setCaseFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // BYOK State Management
-  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [auditLoadingState, setAuditLoadingState] = useState<string | null>(null);
+  const [auditResult, setAuditResult] = useState<string | null>(null);
 
   const { status } = useSession({
     required: true,
@@ -25,16 +24,8 @@ export default function Page() {
     },
   });
 
-  // Load API key from local storage on mount
-  useEffect(() => {
-    const storedKey = localStorage.getItem('driftseek_genai_key');
-    if (storedKey) {
-      setApiKey(storedKey);
-    } else {
-      // Force popup if no key is found
-      setIsApiModalOpen(true);
-    }
-  }, []);
+  // remove BYOK; nothing to load on mount
+  useEffect(() => {}, []);
 
   const handleOpenGithubModal = async () => {
     setIsGithubModalOpen(true);
@@ -57,44 +48,70 @@ export default function Page() {
     const file = e.target.files?.[0];
     if (file) setCaseFile(file);
   };
+  const handleExecuteScan = async () => {
+    // Reset previous results
+    setAuditResult(null);
+    setAuditLoadingState('Triggering Secure Pipeline...');
 
-  const handleExecuteScan = () => {
-    if (!apiKey) {
-      setIsApiModalOpen(true);
-      return;
+    try {
+      let caseFileText = '';
+      if (caseFile) {
+        caseFileText = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string || '');
+          reader.onerror = reject;
+          reader.readAsText(caseFile);
+        });
+      }
+
+      const payload = { repoUrl: selectedRepo, caseFileText };
+
+      const res = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to trigger pipeline');
+
+      const jobId = data.jobId;
+
+      // progress states
+      setAuditLoadingState('Loading AI Engine from Cache...');
+      setTimeout(() => setAuditLoadingState('Executing Static Code Analysis...'), 2000);
+
+      // start polling
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts += 1;
+        setAuditLoadingState('Awaiting Final Report...');
+        try {
+          const sres = await fetch(`/api/audit/status?jobId=${jobId}`);
+          const sdata = await sres.json();
+          if (sdata.status === 'complete' && sdata.report) {
+            clearInterval(interval);
+            setAuditResult(sdata.report.verifiedFindings || sdata.report.rawFindings);
+            setAuditLoadingState(null);
+          }
+          // optionally stop after some attempts
+          if (attempts > 200) {
+            clearInterval(interval);
+            setAuditLoadingState(null);
+          }
+        } catch (err) {
+          console.error('Polling failed', err);
+        }
+      }, 3000);
+
+    } catch (err) {
+      console.error('Audit Execution Failed:', err);
+      setAuditLoadingState(null);
     }
-    // For demonstration, we'll just log the inputs. In a real implementation, this would trigger the audit process.
-    console.log("Executing scan with the following parameters:");
-    console.log("Selected Repository:", selectedRepo);
-    console.log("Case File:", caseFile);
-    console.log("API Key Present:", !!apiKey);
-    
-    // Here you would typically make a POST request to your audit API endpoint, passing the selectedRepo, caseFile (if any), and ensuring the apiKey is included in the request headers for authentication.
-    const formData = new FormData();
-    if (selectedRepo) formData.append('repoUrl', selectedRepo);
-    if (caseFile) formData.append('caseFile', caseFile);
-
-    fetch('/api/audit', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: formData,
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log("Audit Result:", data);
-      // You can add logic here to display the audit results in the UI
-    })
-    .catch(err => {
-      console.error("Audit Execution Failed:", err);
-      // Optionally display an error message to the user
-    });
-    
   };
 
   return (
-    <div className='flex flex-col h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black overflow-hidden'>
+    <div className='flex flex-col h-screen bg-white py-10 px-6 md:px-12 lg:px-44 font-orbitron text-black overflow-auto'>
       <div className="flex justify-between items-end mb-4 shrink-0">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl md:text-4xl font-bold tracking-wide">
@@ -110,14 +127,7 @@ export default function Page() {
           )}
         </div>
 
-        {/* API Key Manager Button */}
-        <button 
-          onClick={() => setIsApiModalOpen(true)}
-          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono border rounded transition-colors ${apiKey ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
-        >
-          <Key size={14} />
-          {apiKey ? 'KEY ACTIVE' : 'KEY REQUIRED'}
-        </button>
+        {/* Removed BYOK UI - pipeline handles secrets server-side */}
       </div>
 
       <div className='flex flex-col lg:flex-row gap-6 w-full h-full mt-2'>
@@ -138,12 +148,13 @@ export default function Page() {
               </button>
             ) : (
               <div className="flex flex-col items-center gap-4 w-full px-8">
-                <p className="text-sm text-gray-500 text-center">Deploys Genkit agents to trace remote data flows and evaluate architecture tradeoffs.</p>
+                <p className="text-sm text-gray-500 text-center">Deploys agents to trace remote data flows and evaluate architecture tradeoffs.</p>
                 <button 
                   onClick={handleExecuteScan}
-                  className="bg-black text-green-400 py-3 px-6 rounded-lg w-full hover:bg-gray-900 transition-colors font-mono font-bold flex justify-center items-center gap-2 border border-gray-800 shadow-lg shadow-black/10"
+                  disabled={!!auditLoadingState}
+                  className="bg-black text-green-400 py-3 px-6 rounded-lg w-full hover:bg-gray-900 transition-colors font-mono font-bold flex justify-center items-center gap-2 border border-gray-800 shadow-lg shadow-black/10 disabled:opacity-50"
                 >
-                  <Terminal size={16} /> EXECUTE_AGENTIC_SCAN
+                  <Terminal size={16} /> {auditLoadingState ? auditLoadingState : "EXECUTE_AGENTIC_SCAN"}
                 </button>
               </div>
             )}
@@ -200,6 +211,23 @@ export default function Page() {
         </aside>
       </div>
 
+      {auditResult && (
+        <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg shrink-0">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2"><ShieldCheck className="text-green-600" /> Verified Audit Report</h2>
+            <button 
+              onClick={() => window.print()}
+              className="bg-black text-white px-4 py-2 rounded font-sans text-sm font-bold flex items-center gap-2 hover:bg-gray-800 transition-colors"
+            >
+              Download Verified Report (PDF)
+            </button>
+          </div>
+          <div className="bg-white p-6 rounded border border-gray-200 whitespace-pre-wrap font-sans text-sm h-96 overflow-y-auto">
+            {auditResult}
+          </div>
+        </div>
+      )}
+
       <GithubModal 
         isOpen={isGithubModalOpen} 
         onClose={() => setIsGithubModalOpen(false)}
@@ -207,98 +235,14 @@ export default function Page() {
         repos={repos}
         isLoading={isFetchingRepos}
       />
-
-      <ApiKeyModal 
-        isOpen={isApiModalOpen}
-        onClose={() => {
-          // Only allow closing if a key exists, otherwise they can't use the app
-          if (apiKey) setIsApiModalOpen(false);
-        }}
-        currentKey={apiKey}
-        onSave={(key) => {
-          setApiKey(key);
-          localStorage.setItem('driftseek_genai_key', key);
-          setIsApiModalOpen(false);
-        }}
-        onRemove={() => {
-          setApiKey(null);
-          localStorage.removeItem('driftseek_genai_key');
-        }}
-      />
+      
     </div>
   );
 }
 
 // --- Modals below ---
 
-interface ApiKeyModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (key: string) => void;
-  onRemove: () => void;
-  currentKey: string | null;
-}
-
-function ApiKeyModal({ isOpen, onClose, onSave, onRemove, currentKey }: ApiKeyModalProps) {
-  if (!isOpen) return null;
-  const [inputKey, setInputKey] = useState(currentKey || '');
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white border border-gray-200 p-8 rounded-xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 font-sans text-black">
-        
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-black text-white rounded-lg"><Key size={20} /></div>
-          <h2 className="text-xl font-bold font-orbitron tracking-wide">Bring Your Own Key</h2>
-        </div>
-        
-        <p className="text-sm text-gray-500 mb-6">
-          DriftSeek operates a zero-footprint architecture. We do not store, proxy, or log your API keys. Your key is saved locally in your browser and sent directly to the reasoning engine.
-        </p>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Google Gemini API Key</label>
-            <input 
-              type="password" 
-              placeholder="AIzaSy..." 
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-black focus:ring-1 focus:ring-black transition-all font-mono text-sm" 
-              value={inputKey}
-              onChange={(e) => setInputKey(e.target.value)} 
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button 
-              onClick={() => onSave(inputKey)}
-              disabled={!inputKey.trim()}
-              className="flex-1 bg-black text-white py-2.5 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              Save Key Locally
-            </button>
-            {currentKey && (
-              <button 
-                onClick={onClose}
-                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-black font-bold rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-
-          {currentKey && (
-            <button 
-              onClick={onRemove}
-              className="w-full text-center text-xs text-red-500 hover:text-red-700 font-bold tracking-wide uppercase mt-4"
-            >
-              Revoke & Remove Key
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// ApiKeyModal removed - pipeline uses server-side secrets
 
 // ... (GithubModal implementation remains the same as previously provided) ...
 interface GithubModalProps {

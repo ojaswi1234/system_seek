@@ -1,7 +1,9 @@
+export const maxDuration = 60;
+
 import { NextResponse } from 'next/server';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
+import dbConnect from '@/lib/db_connect';
+import { AuditReport } from '@/lib/models/AuditReport';
 
 // Define the expected payload schema strictly
 const AuditPayloadSchema = z.object({
@@ -11,17 +13,7 @@ const AuditPayloadSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    // 1. Intercept & Validate the BYOK (Bring Your Own Key)
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Missing or invalid API Key' },
-        { status: 401 }
-      );
-    }
-    const userApiKey = authHeader.split(' ')[1];
-
-    // 2. Parse and Validate the incoming JSON payload
+    // 1. Parse and Validate the incoming JSON payload
     const body = await request.json();
     const parsedBody = AuditPayloadSchema.safeParse(body);
     
@@ -34,38 +26,43 @@ export async function POST(request: Request) {
 
     const { repoUrl, caseFileText } = parsedBody.data;
 
-    // 3. Dynamically Initialize Genkit per-request
-    // This ensures isolation: one session's key never contaminates another's.
-    const ai = genkit({
-      plugins: [googleAI({ apiKey: userApiKey })],
-      model: 'gemini-2.0-flash', 
-    });
+    // Generate jobId and return immediately
+    const jobId = (globalThis as any).crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
-    // 4. Construct the Remote Auditor Context
-    const systemPrompt = `You are a strict SRE and security auditor. 
-    Analyze the repository at ${repoUrl}. 
-    ${caseFileText ? `Focus specifically on the breakpoint provided in this case file: \n${caseFileText}` : 'Perform a broad static intelligence sweep and logical flow analysis.'}
-    Return your findings in a structured JSON format.`;
-
-    // 5. Execute the Reasoning Engine
-    const { text } = await ai.generate({
-      prompt: systemPrompt,
-      config: {
-        temperature: 0.1, // Keep hallucination strictly low for security audits
+    // Dispatch GitHub workflow via REST API
+    const GITHUB_PAT = process.env.GITHUB_PAT;
+    const DISPATCH_REPO = process.env.GITHUB_DISPATCH_REPO || 'ojaswi1234/drift_seek';
+    if (!GITHUB_PAT) {
+      console.error('Missing GITHUB_PAT in environment');
+    } else {
+      const dispatchUrl = `https://api.github.com/repos/${DISPATCH_REPO}/actions/workflows/ai-auditor.yml/dispatches`;
+      try {
+        await fetch(dispatchUrl, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${GITHUB_PAT}`,
+          },
+          body: JSON.stringify({
+            ref: 'main',
+            inputs: { repoUrl, caseFileText: caseFileText || '', jobId }
+          })
+        });
+      } catch (err) {
+        console.error('Failed to dispatch workflow', err);
       }
-    });
+    }
 
-    // 6. Return the stateless response
-    return NextResponse.json({
-      status: "SUCCESS",
-      target: repoUrl,
-      auditResult: text,
-    });
+    // Optionally create a placeholder record so polling can see a pending job (without findings)
+    await dbConnect();
+    await AuditReport.create({ repoUrl, caseFileText, rawFindings: '', verifiedFindings: '', jobId });
 
-  } catch (error) {
-    console.error('[DRIFT_ENGINE] Audit Execution Failed:', error);
+    return NextResponse.json({ status: 'processing', jobId });
+
+  } catch (error: any) {
+    console.error('[DRIFT_ENGINE] Dispatch Failed:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error during audit execution.' },
+      { error: error?.message || 'Internal Server Error during dispatch.' },
       { status: 500 }
     );
   }
